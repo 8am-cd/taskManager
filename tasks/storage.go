@@ -2,11 +2,13 @@ package tasks
 
 import (
 	"fmt"
+	"sync"
 )
 
 type TaskStorage struct {
 	storage []Task
 	nextID  int
+	mu      sync.Mutex
 }
 
 func NewStorage() *TaskStorage {
@@ -14,6 +16,9 @@ func NewStorage() *TaskStorage {
 }
 
 func (s *TaskStorage) AddTask(task Task) int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	task.ID = s.nextID
 	s.nextID++
 	s.storage = append(s.storage, task)
@@ -22,6 +27,9 @@ func (s *TaskStorage) AddTask(task Task) int {
 }
 
 func (s *TaskStorage) DeleteTaskByID(id int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	for index, task := range s.storage {
 		if task.ID == id {
 			s.storage = append(s.storage[:index], s.storage[index+1:]...)
@@ -33,6 +41,9 @@ func (s *TaskStorage) DeleteTaskByID(id int) error {
 }
 
 func (s *TaskStorage) GetAllTasks() []Task {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	result := make([]Task, len(s.storage))
 	copy(result, s.storage)
 	return result

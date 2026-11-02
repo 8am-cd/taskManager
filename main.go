@@ -8,15 +8,19 @@ import (
 )
 
 func main() {
+	mux := http.NewServeMux()
 	taskStorage := tasks.NewStorage()
 	handler := handlers.NewHandler(taskStorage)
 
-	http.HandleFunc("GET /tasks", handler.GetAllTasks)
-	http.HandleFunc("POST /tasks", handler.PostTask)
-	http.HandleFunc("DELETE /tasks/{id}", handler.DeleteTask)
+	mux.HandleFunc("GET /tasks", handler.GetAllTasks)
+	mux.HandleFunc("POST /tasks", handler.PostTask)
+	mux.HandleFunc("DELETE /tasks/{id}", handler.DeleteTask)
 
-	err := http.ListenAndServe(":8080", nil)
-	if err != nil {
-		log.Fatal(err)
+	server := &http.Server{
+		Addr:    ":8080",
+		Handler: mux,
 	}
+
+	log.Println("Сервер слушает порт 8080")
+	log.Fatal(server.ListenAndServe())
 }
