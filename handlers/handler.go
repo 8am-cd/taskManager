@@ -1,11 +1,13 @@
 package handlers
 
-import "awesomeProject/tasks"
+import (
+	"awesomeProject/repository"
+)
 
 type Handler struct {
-	taskStorage *tasks.TaskStorage
+	postgresStorage *repository.PostgresStorage
 }
 
-func NewHandler(storage *tasks.TaskStorage) Handler {
-	return Handler{taskStorage: storage}
+func NewHandler(storage *repository.PostgresStorage) Handler {
+	return Handler{postgresStorage: storage}
 }
