@@ -12,7 +12,7 @@ HTTP API для управления задачами. Сервер написа
 docker compose up -d --build
 ```
 
-API доступен по адресу `http://127.0.0.1:8080`. Проверить запуск:
+Открой [веб-интерфейс](http://127.0.0.1:8080/) в браузере. В нём можно создавать, переименовывать и удалять задачи, отмечать их выполненными и фильтровать список. API доступен на том же порту. Проверить запуск:
 
 ```bash
 docker compose ps
@@ -80,5 +80,6 @@ curl -i -X DELETE http://127.0.0.1:8080/tasks/1
 | [handlers/](handlers/) | Обработка HTTP-запросов, проверка входных данных и ответы в JSON |
 | [repository/](repository/) | SQL-запросы к PostgreSQL |
 | [tasks/](tasks/) | Структура задачи |
+| [web/](web/), [frontend.go](frontend.go) | Веб-интерфейс на HTML, CSS и JavaScript, встроенный в Go-сервер |
 | [init.sql](init.sql) | Создание таблицы при инициализации базы |
 | [Dockerfile](Dockerfile), [docker-compose.yaml](docker-compose.yaml) | Сборка приложения и запуск контейнеров |

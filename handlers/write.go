@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"awesomeProject/repository"
 	"awesomeProject/tasks"
 	"context"
 	"encoding/json"
@@ -61,8 +62,8 @@ func (h *Handler) PatchTask(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<10)
 
 	var body struct {
-		Title string `json:"title"`
-		Done  bool   `json:"done"`
+		Title *string `json:"title"`
+		Done  *bool   `json:"done"`
 	}
 
 	dec := json.NewDecoder(r.Body)
@@ -77,7 +78,11 @@ func (h *Handler) PatchTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.postgresStorage.PatchTask(context.Background(), id, body.Title, body.Done); err != nil {
-		WriteError(w, "task does not exist", http.StatusNotFound)
+		if errors.Is(err, &repository.ErrTaskNotFound{ID: id}) {
+			WriteError(w, err.Error(), http.StatusNotFound)
+		} else {
+			WriteError(w, "", http.StatusInternalServerError)
+		}
 		return
 	}
 
@@ -92,7 +97,11 @@ func (h *Handler) DeleteTaskByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.postgresStorage.DeleteTaskByID(context.Background(), id); err != nil {
-		WriteError(w, "task does not exist", http.StatusNotFound)
+		if errors.Is(err, &repository.ErrTaskNotFound{ID: id}) {
+			WriteError(w, "task does not exist", http.StatusNotFound)
+		} else {
+			WriteError(w, "", http.StatusInternalServerError)
+		}
 		return
 	}
 

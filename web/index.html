@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#172439">
+  <title>Мои задачи · Task Manager</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/styles.css">
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <svg xmlns="http://www.w3.org/2000/svg" class="symbols" aria-hidden="true">
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 6v5h-5m5 0a8 8 0 1 0-1.5 6.5"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="m15 5 4 4M5 15 16 4a2.8 2.8 0 0 1 4 4L9 19l-5 1z"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5m4-5v5"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="14" rx="2"/><path d="M8 4v4m8-4v4M4 11h16"/></symbol>
+  </svg>
+  <div class="layout">
+    <aside class="sidebar">
+      <a href="/" class="brand"><span class="brand-mark"><svg class="icon"><use href="#i-check"/></svg></span><span>Task Manager</span></a>
+      <nav class="filters" aria-label="Фильтр задач">
+        <span class="nav-label">Задачи</span>
+        <button type="button" data-filter="all" aria-pressed="true"><svg class="icon"><use href="#i-list"/></svg>Все задачи</button>
+        <button type="button" data-filter="active" aria-pressed="false"><svg class="icon"><use href="#i-clock"/></svg>В работе</button>
+        <button type="button" data-filter="done" aria-pressed="false"><svg class="icon"><use href="#i-check"/></svg>Выполнено</button>
+      </nav>
+    </aside>
+
+    <main class="content">
+      <header class="page-header">
+        <div>
+          <h1>Мои задачи</h1>
+          <p>Записывай планы и отмечай, что уже сделано.</p>
+        </div>
+        <div class="date"><svg class="icon"><use href="#i-calendar"/></svg><time id="today"></time></div>
+      </header>
+
+      <section class="stats" aria-label="Статистика задач">
+        <div class="stat"><span class="stat-icon blue"><svg class="icon"><use href="#i-list"/></svg></span><div><span class="stat-label">Всего</span><strong id="total">—</strong></div></div>
+        <div class="stat"><span class="stat-icon amber"><svg class="icon"><use href="#i-clock"/></svg></span><div><span class="stat-label">В работе</span><strong id="active">—</strong></div></div>
+        <div class="stat"><span class="stat-icon green"><svg class="icon"><use href="#i-check"/></svg></span><div><span class="stat-label">Выполнено</span><strong id="done">—</strong></div></div>
+      </section>
+
+      <section class="board" aria-labelledby="list-heading">
+        <div class="board-header">
+          <div><h2 id="list-heading" tabindex="-1">Все задачи</h2><p id="list-count"></p></div>
+          <button type="button" class="icon-button refresh" id="refresh" aria-label="Обновить список" title="Обновить список"><svg class="icon"><use href="#i-refresh"/></svg></button>
+        </div>
+        <form id="create-form" class="create-form">
+          <label class="sr-only" for="new-title">Название новой задачи</label>
+          <input type="text" id="new-title" placeholder="Что нужно сделать?" maxlength="1024" required>
+          <button type="submit" class="button primary"><svg class="icon"><use href="#i-plus"/></svg>Добавить</button>
+        </form>
+        <p class="error" id="error" role="alert" hidden></p>
+        <p class="sr-only" id="status" role="status"></p>
+        <ul class="task-list" id="task-list"></ul>
+        <div class="empty" id="empty">
+          <span class="empty-icon"><svg class="icon"><use href="#i-list"/></svg></span>
+          <h3 id="empty-title">Загружаем задачи…</h3>
+          <p id="empty-description"></p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <template id="task-template">
+    <li class="task">
+      <label class="check"><input type="checkbox"><span class="check-box"><svg class="icon"><use href="#i-check"/></svg></span></label>
+      <span class="task-title"></span>
+      <div class="actions">
+        <button type="button" class="icon-button edit" title="Переименовать"><svg class="icon"><use href="#i-edit"/></svg></button>
+        <button type="button" class="icon-button delete" title="Удалить"><svg class="icon"><use href="#i-trash"/></svg></button>
+      </div>
+    </li>
+  </template>
+
+  <dialog id="task-dialog" aria-labelledby="dialog-title">
+    <form id="dialog-form">
+      <h2 id="dialog-title"></h2>
+      <p id="dialog-description"></p>
+      <div id="edit-field">
+        <label for="edit-title">Название задачи</label>
+        <input type="text" id="edit-title" maxlength="1024">
+      </div>
+      <p class="error" id="dialog-error" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button type="button" id="cancel" class="button secondary">Отмена</button>
+        <button type="submit" id="confirm" class="button primary">Сохранить</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>

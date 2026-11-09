@@ -23,6 +23,7 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
+	registerFrontend(mux)
 	storage := repository.NewStorage(pool)
 	handler := handlers.NewHandler(storage)
 

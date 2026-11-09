@@ -11,7 +11,7 @@ import (
 func (s *PostgresStorage) GetAllTasks(ctx context.Context, done *bool) ([]tasks.Task, error) {
 	var rows pgx.Rows
 	var err error
-	var tasksList []tasks.Task
+	tasksList := make([]tasks.Task, 0)
 
 	switch done {
 	case nil:
@@ -20,6 +20,7 @@ func (s *PostgresStorage) GetAllTasks(ctx context.Context, done *bool) ([]tasks.
 				 FROM tasks
 				 ORDER BY id;`,
 		)
+		defer rows.Close()
 	default:
 		rows, err = s.pool.Query(
 			ctx,
@@ -29,6 +30,7 @@ func (s *PostgresStorage) GetAllTasks(ctx context.Context, done *bool) ([]tasks.
 				 ORDER BY id;`,
 			*done,
 		)
+		defer rows.Close()
 	}
 
 	if err != nil {
