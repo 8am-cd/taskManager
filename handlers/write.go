@@ -3,7 +3,6 @@ package handlers
 import (
 	"awesomeProject/repository"
 	"awesomeProject/tasks"
-	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -13,6 +12,8 @@ import (
 )
 
 func (h *Handler) PostTask(w http.ResponseWriter, r *http.Request) {
+	userID, _ := r.Context().Value(keyUserID).(int)
+
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<10)
 
 	var input struct {
@@ -43,7 +44,7 @@ func (h *Handler) PostTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, err := h.postgresStorage.AddTask(context.Background(), tasks.NewTask(input.Title))
+	id, err := h.postgresStorage.AddTask(userID, tasks.NewTask(input.Title))
 	if err != nil {
 		WriteError(w, "cant add task", http.StatusInternalServerError)
 		return
@@ -53,6 +54,8 @@ func (h *Handler) PostTask(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) PatchTask(w http.ResponseWriter, r *http.Request) {
+	userID, _ := r.Context().Value(keyUserID).(int)
+
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil || id < 0 {
 		WriteError(w, "id is incorrect", http.StatusBadRequest)
@@ -77,8 +80,8 @@ func (h *Handler) PatchTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.postgresStorage.PatchTask(context.Background(), id, body.Title, body.Done); err != nil {
-		if errors.Is(err, &repository.ErrTaskNotFound{ID: id}) {
+	if err := h.postgresStorage.PatchTask(userID, id, body.Title, body.Done); err != nil {
+		if _, ok := errors.AsType[*repository.ErrTaskNotFound](err); ok {
 			WriteError(w, err.Error(), http.StatusNotFound)
 		} else {
 			WriteError(w, "", http.StatusInternalServerError)
@@ -90,14 +93,16 @@ func (h *Handler) PatchTask(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) DeleteTaskByID(w http.ResponseWriter, r *http.Request) {
+	userID, _ := r.Context().Value(keyUserID).(int)
+
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil || id < 0 {
 		WriteError(w, "id is incorrect", http.StatusBadRequest)
 		return
 	}
 
-	if err := h.postgresStorage.DeleteTaskByID(context.Background(), id); err != nil {
-		if errors.Is(err, &repository.ErrTaskNotFound{ID: id}) {
+	if err := h.postgresStorage.DeleteTaskByID(userID, id); err != nil {
+		if _, ok := errors.AsType[*repository.ErrTaskNotFound](err); ok {
 			WriteError(w, "task does not exist", http.StatusNotFound)
 		} else {
 			WriteError(w, "", http.StatusInternalServerError)

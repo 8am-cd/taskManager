@@ -12,6 +12,22 @@ const errorBox = byID("error");
 const dialogError = byID("dialog-error");
 const refresh = byID("refresh");
 const filters = [...document.querySelectorAll("[data-filter]")];
+const logout = byID("logout");
+const accountView = byID("account-view");
+const workspaceView = byID("workspace-view");
+const sessionCheck = byID("session-check");
+const sessionRetry = byID("session-retry");
+const authView = byID("auth-view");
+const authForm = byID("auth-form");
+const authEmail = byID("auth-email");
+const authPassword = byID("auth-password");
+const authError = byID("auth-error");
+const authNotice = byID("auth-notice");
+const authSubmit = byID("auth-submit");
+const passwordVisibility = byID("password-visibility");
+const authModes = [...document.querySelectorAll("[data-auth-mode]")];
+let authMode = "login";
+let authBusy = false;
 
 const today = new Intl.DateTimeFormat("ru-RU", {
   day: "numeric", month: "long", weekday: "long",
@@ -30,11 +46,23 @@ function statusMessage(status) {
   return "Сервер не смог выполнить запрос. Попробуй ещё раз.";
 }
 
-async function request(path, method = "GET", payload) {
-  const options = { method, headers: { Accept: "application/json" } };
+class RequestError extends Error {
+  constructor(status) {
+    super(statusMessage(status));
+    this.status = status;
+  }
+}
+
+async function request(path, method = "GET", payload, expectJSON = true) {
+  const options = {
+    method,
+    credentials: "same-origin",
+    cache: "no-store",
+    headers: { Accept: "application/json" },
+  };
   if (payload !== undefined) {
     options.body = JSON.stringify(payload);
-    if (new TextEncoder().encode(options.body).length > 1024) {
+    if (!path.startsWith("/auth/") && new TextEncoder().encode(options.body).length > 1024) {
       throw new Error(statusMessage(413));
     }
     options.headers["Content-Type"] = "application/json";
@@ -46,8 +74,8 @@ async function request(path, method = "GET", payload) {
   } catch {
     throw new Error("Нет связи с сервером. Проверь, что приложение запущено.");
   }
-  if (!response.ok) throw new Error(statusMessage(response.status));
-  if (response.status === 204) return;
+  if (!response.ok) throw new RequestError(response.status);
+  if (!expectJSON || response.status === 204) return;
   try {
     return await response.json();
   } catch {
@@ -57,6 +85,7 @@ async function request(path, method = "GET", payload) {
 
 function syncControls() {
   refresh.disabled = state.busy;
+  logout.disabled = state.busy;
   createForm.querySelector("button").disabled = state.busy || state.tasks === null;
   for (const control of taskList.querySelectorAll("button, input")) {
     control.disabled = state.busy;
@@ -65,6 +94,154 @@ function syncControls() {
   byID("cancel").disabled = state.busy;
   editTitle.readOnly = state.busy;
 }
+
+function setView(view) {
+  accountView.hidden = view === "workspace";
+  workspaceView.hidden = view !== "workspace";
+  authView.hidden = view !== "auth";
+  sessionCheck.hidden = view !== "checking";
+  document.title = view === "workspace" ? "Мои задачи · Task Manager" : "Task Manager";
+}
+
+function setPasswordVisibility(visible) {
+  authPassword.type = visible ? "text" : "password";
+  passwordVisibility.textContent = visible ? "Скрыть" : "Показать";
+}
+
+function syncAuthControls() {
+  authSubmit.disabled = authBusy;
+  authSubmit.textContent = authBusy
+    ? (authMode === "login" ? "Входим…" : "Создаём аккаунт…")
+    : (authMode === "login" ? "Войти" : "Создать аккаунт");
+  authEmail.readOnly = authBusy;
+  authPassword.readOnly = authBusy;
+  passwordVisibility.disabled = authBusy;
+  for (const button of authModes) button.disabled = authBusy;
+}
+
+function setAuthMode(mode) {
+  authMode = mode;
+  const login = mode === "login";
+  byID("auth-heading").textContent = login ? "Вход в аккаунт" : "Создание аккаунта";
+  byID("auth-description").textContent = login
+    ? "Войди, чтобы открыть свои задачи."
+    : "Укажи почту и пароль для своего списка задач.";
+  authPassword.autocomplete = login ? "current-password" : "new-password";
+  authPassword.value = "";
+  setPasswordVisibility(false);
+  showError(authError);
+  showError(authNotice);
+  for (const button of authModes) {
+    button.setAttribute("aria-pressed", String(button.dataset.authMode === mode));
+  }
+  syncAuthControls();
+}
+
+function showAuth(message = "", error = "") {
+  if (state.dialog !== null) closeDialog();
+  state.tasks = null;
+  state.filter = "all";
+  newTitle.value = "";
+  editTitle.value = "";
+  byID("dialog-description").textContent = "";
+  byID("status").textContent = "";
+  authForm.reset();
+  showError(errorBox);
+  showError(dialogError);
+  setAuthMode("login");
+  render();
+  setView("auth");
+  showError(authNotice, message);
+  showError(authError, error);
+  authEmail.focus();
+}
+
+async function fetchTasks() {
+  const data = await request("/tasks");
+  if (data?.tasks !== null && !Array.isArray(data?.tasks)) {
+    throw new Error("Сервер вернул неожиданный список задач.");
+  }
+  return data.tasks ?? [];
+}
+
+async function checkSession(afterLogin = false) {
+  setView("checking");
+  byID("session-heading").textContent = "Проверяем сессию…";
+  showError(byID("session-error"));
+  sessionRetry.hidden = true;
+  try {
+    state.tasks = await fetchTasks();
+    render();
+    setView("workspace");
+    if (afterLogin) byID("workspace-heading").focus();
+  } catch (error) {
+    if (error.status === 401) {
+      showAuth("", afterLogin ? "Не удалось сохранить сессию. Проверь настройки cookie и войди снова." : "");
+    } else {
+      byID("session-heading").textContent = "Не удалось открыть задачи";
+      showError(byID("session-error"), error.message);
+      sessionRetry.hidden = false;
+      sessionRetry.focus();
+    }
+  }
+}
+
+authForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (authBusy) return;
+  const email = authEmail.value.trim();
+  const password = authPassword.value.trim();
+  if (!email || !password) {
+    showError(authError, "Заполни почту и пароль.");
+    return;
+  }
+  if (authMode === "register" && new TextEncoder().encode(password).length > 72) {
+    showError(authError, "Пароль слишком длинный. Допустимо не более 72 байт.");
+    return;
+  }
+
+  const registering = authMode === "register";
+  authBusy = true;
+  syncAuthControls();
+  showError(authError);
+  showError(authNotice);
+  try {
+    await request(`/auth/${authMode}`, "POST", { email, password }, false);
+    if (registering) {
+      setAuthMode("login");
+      authEmail.value = email;
+      showError(authNotice, "Аккаунт создан. Теперь войди с этим паролем.");
+      authPassword.focus();
+    } else {
+      authPassword.value = "";
+      setPasswordVisibility(false);
+      await checkSession(true);
+    }
+  } catch (error) {
+    if (!registering && error.status === 401) {
+      showError(authError, "Неверная почта или пароль.");
+    } else if (registering && error.status === 409) {
+      showError(authError, "Аккаунт с такой почтой уже существует.");
+    } else if (error.status === 400) {
+      showError(authError, "Не удалось принять данные. Проверь почту и пароль.");
+    } else if (error.status >= 500 && registering) {
+      showError(authError, "Не удалось создать аккаунт. Если ты уже регистрировался, попробуй войти.");
+    } else {
+      showError(authError, error.message);
+    }
+  } finally {
+    authBusy = false;
+    syncAuthControls();
+  }
+});
+
+for (const button of authModes) {
+  button.addEventListener("click", () => {
+    if (!authBusy && button.dataset.authMode !== authMode) setAuthMode(button.dataset.authMode);
+  });
+}
+passwordVisibility.addEventListener("click", () => setPasswordVisibility(authPassword.type === "password"));
+sessionRetry.addEventListener("click", () => checkSession());
 
 function visibleTasks() {
   const tasks = state.tasks ?? [];
@@ -154,7 +331,11 @@ async function mutate(action, message, box = errorBox) {
     byID("status").textContent = message;
     return true;
   } catch (error) {
-    showError(box, error.message);
+    if (error.status === 401) {
+      showAuth("", "Сессия закончилась. Войди снова.");
+    } else {
+      showError(box, error.message);
+    }
     return false;
   } finally {
     state.busy = false;
@@ -168,11 +349,7 @@ async function loadTasks() {
   render();
   await mutate(async () => {
     try {
-      const data = await request("/tasks");
-      if (data?.tasks !== null && !Array.isArray(data?.tasks)) {
-        throw new Error("Сервер вернул неожиданный список задач.");
-      }
-      state.tasks = data.tasks ?? [];
+      state.tasks = await fetchTasks();
     } finally {
       state.loading = false;
     }
@@ -263,4 +440,11 @@ for (const filter of filters) {
 }
 
 refresh.addEventListener("click", loadTasks);
-loadTasks();
+logout.addEventListener("click", async () => {
+  const signedOut = await mutate(
+    () => request("/auth/logout", "POST", undefined, false),
+    "Выход из аккаунта",
+  );
+  if (signedOut) showAuth("Ты вышел из аккаунта.");
+});
+checkSession();

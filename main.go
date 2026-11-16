@@ -27,10 +27,13 @@ func main() {
 	storage := repository.NewStorage(pool)
 	handler := handlers.NewHandler(storage)
 
-	mux.HandleFunc("GET /tasks", handler.GetAllTasks)
-	mux.HandleFunc("POST /tasks", handler.PostTask)
-	mux.HandleFunc("PATCH /tasks/{id}", handler.PatchTask)
-	mux.HandleFunc("DELETE /tasks/{id}", handler.DeleteTaskByID)
+	mux.Handle("POST /auth/login", http.HandlerFunc(handler.LoginUser))
+	mux.Handle("POST /auth/register", http.HandlerFunc(handler.RegisterUser))
+	mux.Handle("POST /auth/logout", http.HandlerFunc(handler.LogoutUser))
+	mux.Handle("GET /tasks", handler.Authorization(http.HandlerFunc(handler.GetAllTasks)))
+	mux.Handle("POST /tasks", handler.Authorization(http.HandlerFunc(handler.PostTask)))
+	mux.Handle("PATCH /tasks/{id}", handler.Authorization(http.HandlerFunc(handler.PatchTask)))
+	mux.Handle("DELETE /tasks/{id}", handler.Authorization(http.HandlerFunc(handler.DeleteTaskByID)))
 
 	server := &http.Server{
 		Addr:    ":8080",

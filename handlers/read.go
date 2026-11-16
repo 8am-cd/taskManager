@@ -2,11 +2,12 @@ package handlers
 
 import (
 	"awesomeProject/tasks"
-	"context"
 	"net/http"
 )
 
 func (h *Handler) GetAllTasks(w http.ResponseWriter, r *http.Request) {
+	userID, _ := r.Context().Value(keyUserID).(int)
+
 	params := r.URL.Query()
 	doneStr := params.Get("done")
 	var done bool
@@ -21,8 +22,8 @@ func (h *Handler) GetAllTasks(w http.ResponseWriter, r *http.Request) {
 		donePtr = &done
 	}
 
-	tasksList, err := h.postgresStorage.GetAllTasks(context.Background(), donePtr)
-	if err != nil{
+	tasksList, err := h.postgresStorage.GetAllTasks(userID, donePtr)
+	if err != nil {
 		WriteError(w, "cant get tasks", http.StatusInternalServerError)
 		return
 	}

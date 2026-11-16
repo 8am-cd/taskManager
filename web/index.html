@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#172439">
-  <title>Мои задачи · Task Manager</title>
+  <title>Task Manager</title>
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/styles.css">
   <script src="/assets/app.js" defer></script>
@@ -19,8 +19,48 @@
     <symbol id="i-edit" viewBox="0 0 24 24"><path d="m15 5 4 4M5 15 16 4a2.8 2.8 0 0 1 4 4L9 19l-5 1z"/></symbol>
     <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5m4-5v5"/></symbol>
     <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="14" rx="2"/><path d="M8 4v4m8-4v4M4 11h16"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4m5-13 5 5-5 5m5-5H9"/></symbol>
   </svg>
-  <div class="layout">
+  <main id="account-view" class="account-page">
+    <div class="account-shell">
+      <div class="account-intro">
+        <div class="brand"><span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></span><span>Task Manager</span></div>
+        <div class="account-intro-copy">
+          <span class="account-kicker">Личное пространство</span>
+          <p class="account-tagline">Твои планы.<br>Твой темп.</p>
+          <p class="account-description">Собирай задачи в одном месте и отмечай, что уже сделано.</p>
+        </div>
+      </div>
+      <section class="account-panel">
+        <div id="session-check" class="session-check">
+          <h1 id="session-heading" tabindex="-1">Проверяем сессию…</h1>
+          <p id="session-error" role="alert" hidden></p>
+          <button type="button" class="button secondary" id="session-retry" hidden>Попробовать ещё раз</button>
+        </div>
+        <div id="auth-view" hidden>
+          <div class="auth-switch" role="group" aria-label="Действие с аккаунтом">
+            <button type="button" data-auth-mode="login" aria-pressed="true">Вход</button>
+            <button type="button" data-auth-mode="register" aria-pressed="false">Регистрация</button>
+          </div>
+          <h1 id="auth-heading">Вход в аккаунт</h1>
+          <p id="auth-description">Войди, чтобы открыть свои задачи.</p>
+          <p id="auth-notice" class="auth-notice" role="status" hidden></p>
+          <form id="auth-form" method="post">
+            <label for="auth-email">Почта</label>
+            <input type="email" id="auth-email" name="email" autocomplete="username" inputmode="email" placeholder="name@example.com" required>
+            <label for="auth-password">Пароль</label>
+            <div class="password-field">
+              <input type="password" id="auth-password" name="password" autocomplete="current-password" required>
+              <button type="button" id="password-visibility" class="password-visibility" aria-controls="auth-password">Показать</button>
+            </div>
+            <p id="auth-error" class="error" role="alert" hidden></p>
+            <button type="submit" id="auth-submit" class="button primary" disabled>Войти</button>
+          </form>
+        </div>
+      </section>
+    </div>
+  </main>
+  <div id="workspace-view" class="layout" hidden>
     <aside class="sidebar">
       <a href="/" class="brand"><span class="brand-mark"><svg class="icon"><use href="#i-check"/></svg></span><span>Task Manager</span></a>
       <nav class="filters" aria-label="Фильтр задач">
@@ -34,10 +74,13 @@
     <main class="content">
       <header class="page-header">
         <div>
-          <h1>Мои задачи</h1>
+          <h1 id="workspace-heading" tabindex="-1">Мои задачи</h1>
           <p>Записывай планы и отмечай, что уже сделано.</p>
         </div>
-        <div class="date"><svg class="icon"><use href="#i-calendar"/></svg><time id="today"></time></div>
+        <div class="header-actions">
+          <div class="date"><svg class="icon"><use href="#i-calendar"/></svg><time id="today"></time></div>
+          <button type="button" class="button secondary logout" id="logout"><svg class="icon" aria-hidden="true"><use href="#i-logout"/></svg>Выйти</button>
+        </div>
       </header>
 
       <section class="stats" aria-label="Статистика задач">

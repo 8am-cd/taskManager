@@ -7,13 +7,14 @@ import (
 	"log"
 )
 
-func (s *PostgresStorage) AddTask(ctx context.Context, task tasks.Task) (int, error) {
+func (s *PostgresStorage) AddTask(userID int, task tasks.Task) (int, error) {
 	var id int
 
 	err := s.pool.QueryRow(
-		ctx,
-		`INSERT INTO tasks (title, done) VALUES ($1, false) RETURNING id;`,
+		context.Background(),
+		`INSERT INTO tasks (title, done, user_id) VALUES ($1, false, $2) RETURNING id;`,
 		task.Title,
+		userID,
 	).Scan(&id)
 	if err != nil {
 		return 0, err
@@ -22,19 +23,20 @@ func (s *PostgresStorage) AddTask(ctx context.Context, task tasks.Task) (int, er
 	return id, nil
 }
 
-func (s *PostgresStorage) PatchTask(ctx context.Context, id int, title *string, done *bool) error {
+func (s *PostgresStorage) PatchTask(userID int, id int, title *string, done *bool) error {
 	if title != nil && len(*title) == 0 {
 		title = nil
 	}
 
 	tag, err := s.pool.Exec(
-		ctx,
+		context.Background(),
 		`UPDATE tasks
 			 SET title = COALESCE($1::text, title),
 			     done = COALESCE($2::boolean, done)
-			 WHERE id = $3`,
+			 WHERE user_id = $3 AND id = $4`,
 		title,
 		done,
+		userID,
 		id,
 	)
 
@@ -51,10 +53,11 @@ func (s *PostgresStorage) PatchTask(ctx context.Context, id int, title *string, 
 	return nil
 }
 
-func (s *PostgresStorage) DeleteTaskByID(ctx context.Context, id int) error {
+func (s *PostgresStorage) DeleteTaskByID(userID int, id int) error {
 	tag, err := s.pool.Exec(
-		ctx,
-		`DELETE FROM tasks WHERE id = $1`,
+		context.Background(),
+		`DELETE FROM tasks WHERE user_id = $1 AND id = $2`,
+		userID,
 		id,
 	)
 	if err != nil {

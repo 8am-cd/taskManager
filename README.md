@@ -1,6 +1,6 @@
 # Task Manager
 
-HTTP API для управления задачами. Сервер написан на Go с использованием стандартного пакета `net/http`. Задачи хранятся в PostgreSQL 17, для работы с базой используется `pgxpool`. Приложение и база запускаются через Docker Compose.
+Task Manager — веб-приложение для управления личными задачами с HTTP API на Go (net/http). Пользователи могут зарегистрироваться, войти в аккаунт и работать только со своими задачами. Авторизация основана на серверных сессиях: браузер передаёт идентификатор сессии в cookie. Аккаунты, сессии и задачи хранятся в PostgreSQL 17, к которому приложение подключается через pgxpool. Приложение и база данных запускаются через Docker Compose.
 
 ## Запуск
 
@@ -12,11 +12,11 @@ HTTP API для управления задачами. Сервер написа
 docker compose up -d --build
 ```
 
-Открой [веб-интерфейс](http://127.0.0.1:8080/) в браузере. В нём можно создавать, переименовывать и удалять задачи, отмечать их выполненными и фильтровать список. API доступен на том же порту. Проверить запуск:
+Открой [веб-интерфейс](http://127.0.0.1:8080/) в браузере, зарегистрируйся и войди. В аккаунте можно создавать, переименовывать и удалять свои задачи, отмечать их выполненными и фильтровать список. API доступен на том же порту. Проверить запуск:
 
 ```bash
 docker compose ps
-curl -i http://127.0.0.1:8080/tasks
+curl -i http://127.0.0.1:8080/
 ```
 
 Для остановки используй `docker compose down`. Задачи сохраняются в именованном томе `postgres_data`. Команда `docker compose down -v` удаляет том вместе с данными.
@@ -25,6 +25,9 @@ curl -i http://127.0.0.1:8080/tasks
 
 | Метод и путь | Действие | Успешный ответ |
 | --- | --- | --- |
+| `POST /auth/register` | Создать аккаунт с полями `email` и `password` | `201 Created` |
+| `POST /auth/login` | Войти и получить cookie сессии | `204 No Content` |
+| `POST /auth/logout` | Завершить текущую сессию | `204 No Content` |
 | `GET /tasks` | Получить список задач, отсортированный по ID | `200 OK`, объект с полем `tasks` |
 | `GET /tasks?done=true` | Показать только выполненные задачи; для невыполненных используй `done=false` | `200 OK` |
 | `POST /tasks` | Создать задачу с полем `title` | `201 Created`, объект с ID задачи |
@@ -33,10 +36,23 @@ curl -i http://127.0.0.1:8080/tasks
 
 ### Примеры запросов
 
+Все маршруты `/tasks` требуют cookie действующей сессии. Пример для нового локального аккаунта:
+
+```bash
+cookie_file=$(mktemp)
+curl -i http://127.0.0.1:8080/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"demo@example.com","password":"local-demo-password"}'
+
+curl -i -c "$cookie_file" http://127.0.0.1:8080/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"demo@example.com","password":"local-demo-password"}'
+```
+
 Создать задачу:
 
 ```bash
-curl -i -X POST http://127.0.0.1:8080/tasks \
+curl -i -b "$cookie_file" -X POST http://127.0.0.1:8080/tasks \
   -H 'Content-Type: application/json' \
   -d '{"title":"Изучить Go"}'
 ```
@@ -45,15 +61,18 @@ curl -i -X POST http://127.0.0.1:8080/tasks \
 
 ```bash
 # Отметить задачу выполненной
-curl -i -X PATCH http://127.0.0.1:8080/tasks/1 \
+curl -i -b "$cookie_file" -X PATCH http://127.0.0.1:8080/tasks/1 \
   -H 'Content-Type: application/json' \
   -d '{"done":true}'
 
 # Показать выполненные задачи
-curl -i 'http://127.0.0.1:8080/tasks?done=true'
+curl -i -b "$cookie_file" 'http://127.0.0.1:8080/tasks?done=true'
 
 # Удалить задачу
-curl -i -X DELETE http://127.0.0.1:8080/tasks/1
+curl -i -b "$cookie_file" -X DELETE http://127.0.0.1:8080/tasks/1
+
+# Завершить сессию
+curl -i -b "$cookie_file" -X POST http://127.0.0.1:8080/auth/logout
 ```
 
 ## Подключение к PostgreSQL
@@ -70,7 +89,7 @@ curl -i -X DELETE http://127.0.0.1:8080/tasks/1
 | User | `taskapp` |
 | Password | Пароль пользователя PostgreSQL |
 
-При создании БД на пустом томе PostgreSQL берёт пароль из `POSTGRES_PASSWORD` и выполняет [init.sql](init.sql), создавая таблицу `tasks`. На уже инициализированном томе изменение этих настроек не меняет пароль и не применяет SQL повторно.
+При создании БД на пустом томе PostgreSQL берёт пароль из `POSTGRES_PASSWORD` и выполняет [init.sql](init.sql), создавая таблицы `users`, `tasks` и `sessions`. На уже инициализированном томе изменение этих настроек не меняет пароль и не применяет SQL повторно. Если том создан до появления аккаунтов, схему нужно обновить миграцией: добавить таблицы аккаунтов и сессий и назначить владельцев существующим задачам.
 
 ## Структура проекта
 
@@ -80,6 +99,7 @@ curl -i -X DELETE http://127.0.0.1:8080/tasks/1
 | [handlers/](handlers/) | Обработка HTTP-запросов, проверка входных данных и ответы в JSON |
 | [repository/](repository/) | SQL-запросы к PostgreSQL |
 | [tasks/](tasks/) | Структура задачи |
+| [users/](users/) | Модель данных для входа и регистрации |
 | [web/](web/), [frontend.go](frontend.go) | Веб-интерфейс на HTML, CSS и JavaScript, встроенный в Go-сервер |
-| [init.sql](init.sql) | Создание таблицы при инициализации базы |
+| [init.sql](init.sql) | Создание таблиц при инициализации базы |
 | [Dockerfile](Dockerfile), [docker-compose.yaml](docker-compose.yaml) | Сборка приложения и запуск контейнеров |

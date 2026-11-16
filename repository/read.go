@@ -8,26 +8,30 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func (s *PostgresStorage) GetAllTasks(ctx context.Context, done *bool) ([]tasks.Task, error) {
+func (s *PostgresStorage) GetAllTasks(userID int, done *bool) ([]tasks.Task, error) {
 	var rows pgx.Rows
 	var err error
 	tasksList := make([]tasks.Task, 0)
 
 	switch done {
 	case nil:
-		rows, err = s.pool.Query(ctx,
+		rows, err = s.pool.Query(
+			context.Background(),
 			`SELECT id, title, done
 				 FROM tasks
+				 WHERE user_id = $1
 				 ORDER BY id;`,
+			userID,
 		)
 		defer rows.Close()
 	default:
 		rows, err = s.pool.Query(
-			ctx,
+			context.Background(),
 			`SELECT id, title, done
 				 FROM tasks
-				 WHERE done = $1
+				 WHERE user_id = $1 AND done = $2
 				 ORDER BY id;`,
+			userID,
 			*done,
 		)
 		defer rows.Close()
