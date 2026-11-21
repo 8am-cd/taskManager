@@ -22,7 +22,7 @@ func (h *Handler) GetAllTasks(w http.ResponseWriter, r *http.Request) {
 		donePtr = &done
 	}
 
-	tasksList, err := h.postgresStorage.GetAllTasks(userID, donePtr)
+	tasksList, err := h.storage.GetAllTasks(userID, donePtr)
 	if err != nil {
 		WriteError(w, "cant get tasks", http.StatusInternalServerError)
 		return

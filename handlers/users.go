@@ -17,7 +17,7 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.postgresStorage.AddUser(user); err != nil {
+	if err := h.storage.AddUser(user); err != nil {
 		if _, ok := errors.AsType[*repository.ErrUserExists](err); ok {
 			WriteError(w, "user with this email already exists", http.StatusBadRequest)
 		} else {
@@ -37,7 +37,7 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 
 	var token string
 	var expiresAt time.Time
-	token, expiresAt, err = h.postgresStorage.LoginUser(user)
+	token, expiresAt, err = h.storage.LoginUser(user)
 
 	var unknownUser *repository.ErrUserNotExists
 	var wrongPassword *repository.ErrWrongPassword
@@ -70,7 +70,7 @@ func (h *Handler) LogoutUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.postgresStorage.LogoutUser(cookie.Value); err != nil {
+	if err := h.storage.LogoutUser(cookie.Value); err != nil {
 		WriteError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}

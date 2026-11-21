@@ -24,7 +24,7 @@ func (h *Handler) Authorization(next http.Handler) http.Handler {
 
 		var userID int
 		sum := sha256.Sum256([]byte(cookie.Value))
-		userID, err = h.postgresStorage.SessionActive(hex.EncodeToString(sum[:]))
+		userID, err = h.storage.SessionActive(hex.EncodeToString(sum[:]))
 		if errors.Is(err, pgx.ErrNoRows) {
 			WriteError(w, "unauthorized", http.StatusUnauthorized)
 			return

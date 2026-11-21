@@ -44,7 +44,7 @@ func (h *Handler) PostTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, err := h.postgresStorage.AddTask(userID, tasks.NewTask(input.Title))
+	id, err := h.storage.AddTask(userID, tasks.NewTask(input.Title))
 	if err != nil {
 		WriteError(w, "cant add task", http.StatusInternalServerError)
 		return
@@ -80,7 +80,7 @@ func (h *Handler) PatchTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.postgresStorage.PatchTask(userID, id, body.Title, body.Done); err != nil {
+	if err := h.storage.PatchTask(userID, id, body.Title, body.Done); err != nil {
 		if _, ok := errors.AsType[*repository.ErrTaskNotFound](err); ok {
 			WriteError(w, err.Error(), http.StatusNotFound)
 		} else {
@@ -101,7 +101,7 @@ func (h *Handler) DeleteTaskByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.postgresStorage.DeleteTaskByID(userID, id); err != nil {
+	if err := h.storage.DeleteTaskByID(userID, id); err != nil {
 		if _, ok := errors.AsType[*repository.ErrTaskNotFound](err); ok {
 			WriteError(w, "task does not exist", http.StatusNotFound)
 		} else {
